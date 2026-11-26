@@ -1,0 +1,10 @@
+# Render Blueprint: deploy with "New + → Blueprint" and point it at this repository.
+services:
+  - type: web
+    name: sequence-online
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
