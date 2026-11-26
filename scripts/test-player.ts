@@ -3,6 +3,8 @@
  *   npx tsx scripts/test-player.ts host          -> creates a room, prints its code, starts when full
  *   npx tsx scripts/test-player.ts join <CODE>   -> joins your room and auto-plays (prefers wild Jacks)
  *   npx tsx scripts/test-player.ts quick         -> enters the quick-match queue
+ *   USER=name:password ...                       -> signs in first (registers if new) so results are recorded
+ *   NAME=Friend ...                              -> guest display name
  * Needs the game server running (npm run server or npm run dev:all), or set WS_URL for a deployed one.
  */
 import WebSocket from 'ws';
@@ -14,14 +16,30 @@ const ws = new WebSocket(process.env.WS_URL ?? 'ws://localhost:3001/ws');
 let seat = -1;
 let started = false;
 const log = (...a: unknown[]) => console.log(new Date().toISOString().slice(11, 19), ...a);
-ws.on('open', () => ws.send(JSON.stringify({ type: 'hello', token: null, name: 'Friend' })));
+const account = process.env.USER_LOGIN ? process.env.USER_LOGIN.split(':') : null;
+let begun = false;
+function begin() {
+  if (begun) return;
+  begun = true;
+  if (mode === 'join') ws.send(JSON.stringify({ type: 'join_room', code }));
+  else if (mode === 'quick') ws.send(JSON.stringify({ type: 'quick_match' }));
+  else ws.send(JSON.stringify({ type: 'create_room', name: '', playerCount: 2, teamCount: 2, options: {} }));
+}
+ws.on('open', () => ws.send(JSON.stringify({ type: 'hello', token: null, name: process.env.NAME ?? 'Friend', session: null })));
 ws.on('message', (raw) => {
   const m = JSON.parse(String(raw));
   if (m.type === 'welcome') {
-    if (mode === 'join') ws.send(JSON.stringify({ type: 'join_room', code }));
-    else if (mode === 'quick') ws.send(JSON.stringify({ type: 'quick_match' }));
-    else ws.send(JSON.stringify({ type: 'create_room', playerCount: 2, teamCount: 2 }));
+    if (account) ws.send(JSON.stringify({ type: 'register', username: account[0], password: account[1] }));
+    else begin();
   }
+  if (m.type === 'auth') {
+    log('auth', m.user ? `signed in as ${m.user.username}` : 'signed out');
+    begin();
+  }
+  if (m.type === 'error' && account && /taken/.test(m.message)) {
+    ws.send(JSON.stringify({ type: 'login', username: account[0], password: account[1] }));
+  }
+  if (m.type === 'stats') log('stats', JSON.stringify(m.entries.map((e: any) => `${e.opponent}:${e.wins}-${e.losses}/${e.games}`)));
   if (m.type === 'room') {
     log('room', m.room.code, m.room.status, m.room.seats.map((s: any) => s.name + (s.connected ? '' : '(offline)')).join(','));
     if (mode === 'host' && m.room.status === 'waiting' && m.room.seats.length === m.room.playerCount && !started) {

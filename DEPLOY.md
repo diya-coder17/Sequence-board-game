@@ -3,6 +3,20 @@
 The app is one Node process: it serves the built client and the WebSocket game server on `PORT`.
 Any host that runs Docker or Node and allows WebSockets works. Render's free tier is the simplest.
 
+## Database (recommended for any hosted deployment)
+
+The server stores live games, accounts and head-to-head records. Without a database it writes a JSON
+file to disk, which hosts like Render (free tier) wipe on every restart or deploy. To keep games and
+accounts safe, add a free MongoDB Atlas cluster:
+
+1. https://www.mongodb.com/cloud/atlas → create a free **M0** cluster.
+2. **Database Access** → add a user with a password. **Network Access** → allow `0.0.0.0/0`
+   (Render's outbound IPs change).
+3. **Connect → Drivers** → copy the connection string, e.g.
+   `mongodb+srv://USER:PASSWORD@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority`
+4. In Render → your service → **Environment** → add `MONGODB_URI` with that string. Save; Render redeploys.
+   `GET /healthz` on the server reports `"store":"mongodb"` once it is active.
+
 ## Option A — Vercel (web app) + Render (game server)
 
 Vercel cannot run a persistent WebSocket server, so the app and the server are hosted separately.

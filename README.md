@@ -118,6 +118,19 @@ Both local setup and online room creation let you choose:
 
 The last move is marked with a gold ripple on the placed chip (purple for a wild Jack) and a fading red ✕ where a chip was removed.
 
+### Accounts, records and reconnecting
+
+- Playing works as a guest. **Sign in** (username + password) to keep a record against each opponent:
+  games played, won and lost, shown in the lobby and on the game-over screen.
+- Games are saved on the server after every move. A refresh, a dropped Wi-Fi connection, or even a server
+  restart brings you back into the same game; opponents see an "Offline" badge until you return.
+- Heartbeats every 20 seconds detect dead connections and reconnect automatically.
+- After a game, **Rematch** asks everyone in the room; when all accept, a new game starts in the same room.
+
+Storage: set `MONGODB_URI` (and optionally `MONGODB_DB`) to use MongoDB; without it a JSON file under
+`DATA_DIR` (default `./data`) is used. On hosts with an ephemeral disk you need MongoDB for games and
+accounts to survive restarts.
+
 ### Jack announcements
 
 Whenever anyone plays a **two-eyed Jack** (wild) or a **one-eyed Jack** (remove), every other player gets
