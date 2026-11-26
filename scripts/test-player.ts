@@ -3,13 +3,14 @@
  *   npx tsx scripts/test-player.ts host          -> creates a room, prints its code, starts when full
  *   npx tsx scripts/test-player.ts join <CODE>   -> joins your room and auto-plays (prefers wild Jacks)
  *   npx tsx scripts/test-player.ts quick         -> enters the quick-match queue
- * Needs the game server running (npm run server or npm run dev:all).
+ * Needs the game server running (npm run server or npm run dev:all), or set WS_URL for a deployed one.
  */
 import WebSocket from 'ws';
 import { legalTargets, isTwoEyedJack } from '../src/engine';
 const mode = process.argv[2];
 const code = process.argv[3];
-const ws = new WebSocket('ws://localhost:3001/ws');
+// Point at a deployed server with WS_URL=wss://your-server.example.com/ws
+const ws = new WebSocket(process.env.WS_URL ?? 'ws://localhost:3001/ws');
 let seat = -1;
 let started = false;
 const log = (...a: unknown[]) => console.log(new Date().toISOString().slice(11, 19), ...a);
