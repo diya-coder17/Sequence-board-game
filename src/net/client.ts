@@ -48,7 +48,17 @@ export class GameClient {
     }
   }
 
+  /**
+   * Game-server address. When the client is hosted separately (e.g. Vercel) set VITE_WS_URL at
+   * build time to the server's origin, such as https://sequence-online.onrender.com.
+   * Otherwise the same host serves the WebSocket at /ws.
+   */
   static url(): string {
+    const configured = import.meta.env.VITE_WS_URL as string | undefined;
+    if (configured) {
+      const base = configured.replace(/^http/, 'ws').replace(/\/+$/, '');
+      return base.endsWith('/ws') ? base : `${base}/ws`;
+    }
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     return `${proto}://${location.host}/ws`;
   }
