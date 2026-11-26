@@ -106,6 +106,18 @@ docs/superpowers/specs Design document
 - **Play on this device** lets you mix humans and AI. A "pass the device" screen hides hands between humans.
 - On your turn, hover a card to preview its two board spaces, click it, then click a highlighted space.
 
+### Game options
+
+Both local setup and online room creation let you choose:
+
+- **Team colours** — eight chip colours (blue, green, red, purple, orange, teal, gold, pink); teams must differ.
+- **Sequences to win** — 1, 2 or 3 (the official rule is 2 for two teams, 1 for three teams).
+- **Turn timer** — off, 30, 60 or 90 seconds. A countdown ring shows the time left; when it runs out a sensible
+  move is played automatically (the server enforces this online) and everyone is told.
+- **Room name** (online) — shown in the lobby and the game header.
+
+The last move is marked with a gold ripple on the placed chip (purple for a wild Jack) and a fading red ✕ where a chip was removed.
+
 ### Jack announcements
 
 Whenever anyone plays a **two-eyed Jack** (wild) or a **one-eyed Jack** (remove), every other player gets
