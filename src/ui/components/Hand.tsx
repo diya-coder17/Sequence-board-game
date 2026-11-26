@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
+import { useMemo } from 'react';
 import { isOneEyedJack, isRed, isTwoEyedJack, type CardCode } from '../../engine';
 import { CardFace } from './CardFace';
 
@@ -12,21 +13,36 @@ interface Props {
   onHover: (card: CardCode | null) => void;
 }
 
+/**
+ * Keys must stay stable when a card leaves the hand, otherwise every card to its right
+ * re-mounts and the whole hand appears to reshuffle. Two decks mean duplicates, so the key
+ * is the card code plus its occurrence number ("7C#0", "7C#1").
+ */
+function stableKeys(cards: CardCode[]): string[] {
+  const seen = new Map<string, number>();
+  return cards.map((c) => {
+    const n = seen.get(c) ?? 0;
+    seen.set(c, n + 1);
+    return `${c}#${n}`;
+  });
+}
+
 export function Hand({ cards, selected, deadCards, playable, disabled, onSelect, onHover }: Props) {
+  const keys = useMemo(() => stableKeys(cards), [cards]);
   return (
     <div className="hand" onMouseLeave={() => onHover(null)}>
-      <AnimatePresence initial={false}>
+      <AnimatePresence initial={false} mode="popLayout">
         {cards.map((card, i) => {
           const dead = deadCards.has(card);
           const canPlay = playable.has(card) || dead;
           return (
             <motion.button
-              key={`${card}-${i}`}
-              layout
-              initial={{ y: 60, opacity: 0, rotate: -6 }}
-              animate={{ y: 0, opacity: 1, rotate: 0 }}
-              exit={{ y: -80, opacity: 0, scale: 0.8 }}
-              transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+              key={keys[i]}
+              layout="position"
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -14, transition: { duration: 0.14 } }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
               className={[
                 'card',
                 isRed(card) ? 'red' : '',

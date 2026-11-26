@@ -23,6 +23,8 @@ export interface Seat extends SeatInfo {
 export interface Room {
   code: string;
   name: string;
+  /** Set once the finished game's result has been written to head-to-head stats. */
+  statsRecorded: boolean;
   playerCount: number;
   teamCount: number;
   options: Required<GameOptions>;
@@ -43,7 +45,7 @@ const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 export class RoomManager {
   rooms = new Map<string, Room>();
-  queue: { token: string; name: string }[] = [];
+  queue: { token: string; name: string; userId: string | null }[] = [];
   private rng: () => number;
 
   constructor(rng: () => number = Math.random) {
@@ -72,6 +74,7 @@ export class RoomManager {
     isPrivate = true,
     roomName = '',
     options: GameOptions = {},
+    userId: string | null = null,
   ): Room {
     if (this.roomOf(token)) throw new Error('You are already in a room.');
     if (![2, 3, 4, 6].includes(playerCount)) throw new Error('Online rooms support 2, 3, 4 or 6 players.');
@@ -81,10 +84,11 @@ export class RoomManager {
     const room: Room = {
       code: this.newCode(),
       name: cleanRoomName || `${name}'s room`,
+      statsRecorded: false,
       playerCount,
       teamCount,
       options: resolved,
-      seats: [{ token, name, team: 0, connected: true, isHost: true }],
+      seats: [{ token, name, team: 0, connected: true, isHost: true, userId }],
       status: 'waiting',
       isPrivate,
       game: null,
@@ -99,7 +103,7 @@ export class RoomManager {
    * Join by code. Following an invite link is an explicit intent, so a stale membership in a
    * different room is dropped first; the caller gets that previous room back to notify it.
    */
-  joinRoom(token: string, name: string, code: string): Room {
+  joinRoom(token: string, name: string, code: string, userId: string | null = null): Room {
     const room = this.rooms.get(code.toUpperCase().trim());
     if (!room) throw new Error('Room not found. Check the code and try again.');
     if (room.seats.some((s) => s.token === token)) return room;
@@ -107,7 +111,7 @@ export class RoomManager {
     if (room.status !== 'waiting') throw new Error('That game has already started.');
     if (room.seats.length >= room.playerCount) throw new Error('That room is full.');
     const seatIndex = room.seats.length;
-    room.seats.push({ token, name, team: seatIndex % room.teamCount, connected: true, isHost: false });
+    room.seats.push({ token, name, team: seatIndex % room.teamCount, connected: true, isHost: false, userId });
     return room;
   }
 
@@ -156,6 +160,7 @@ export class RoomManager {
     if (room.seats.length !== room.playerCount) throw new Error('Waiting for more players to join.');
     room.game = createGame(roomPlayerConfigs(room.seats), seed, room.options);
     room.status = 'playing';
+    room.statsRecorded = false;
     room.rematchVotes.clear();
     return room;
   }
@@ -203,6 +208,7 @@ export class RoomManager {
     if (room.rematchVotes.size === room.seats.length) {
       room.game = createGame(roomPlayerConfigs(room.seats), seed, room.options);
       room.status = 'playing';
+      room.statsRecorded = false;
       room.rematchVotes.clear();
       return { room, restarted: true };
     }
@@ -211,13 +217,13 @@ export class RoomManager {
 
   // ---- Quick match -------------------------------------------------------
 
-  enqueue(token: string, name: string): Room | null {
+  enqueue(token: string, name: string, userId: string | null = null): Room | null {
     if (this.roomOf(token)) throw new Error('Leave your room before searching.');
-    if (!this.queue.some((q) => q.token === token)) this.queue.push({ token, name });
+    if (!this.queue.some((q) => q.token === token)) this.queue.push({ token, name, userId });
     if (this.queue.length >= 2) {
       const [a, b] = this.queue.splice(0, 2);
-      const room = this.createRoom(a.token, a.name, 2, 2, false);
-      this.joinRoom(b.token, b.name, room.code);
+      const room = this.createRoom(a.token, a.name, 2, 2, false, '', {}, a.userId);
+      this.joinRoom(b.token, b.name, room.code, b.userId);
       this.startGame(a.token);
       return room;
     }
@@ -237,11 +243,31 @@ export class RoomManager {
       playerCount: room.playerCount,
       teamCount: room.teamCount,
       options: room.options,
-      seats: room.seats.map(({ name, team, connected, isHost }) => ({ name, team, connected, isHost })),
+      seats: room.seats.map(({ name, team, connected, isHost, userId }) => ({ name, team, connected, isHost, userId })),
       status: room.status,
       isPrivate: room.isPrivate,
       mySeat: room.seats.findIndex((s) => s.token === token),
+      rematchWanted: room.seats.filter((s) => room.rematchVotes.has(s.token)).map((s) => s.name),
     };
+  }
+
+  // ---- Persistence ----------------------------------------------------------
+
+  /** Plain-JSON form of a room (Sets become arrays). */
+  static serialize(room: Room): unknown {
+    return { ...room, rematchVotes: [...room.rematchVotes], seats: room.seats.map((s) => ({ ...s, connected: false })) };
+  }
+
+  /** Restore rooms saved by `serialize`. Everyone starts disconnected until they say hello again. */
+  hydrate(rooms: unknown[]): number {
+    let n = 0;
+    for (const raw of rooms) {
+      const r = raw as Room & { rematchVotes: string[] | Set<string> };
+      if (!r?.code || !Array.isArray(r.seats)) continue;
+      this.rooms.set(r.code, { ...r, statsRecorded: r.statsRecorded ?? false, rematchVotes: new Set(r.rematchVotes ?? []) });
+      n++;
+    }
+    return n;
   }
 
   /** Messages that bring every seat in the room up to date. */

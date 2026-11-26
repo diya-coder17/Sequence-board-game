@@ -10,6 +10,24 @@ import { useOnlineGame } from './ui/hooks/useOnlineGame';
 
 type Mode = 'home' | 'local-setup' | 'local-game' | 'online';
 
+/** Remember that this browser was playing online so a refresh reconnects straight into the room. */
+const ONLINE_FLAG = 'sequence.online';
+function readOnlineFlag(): boolean {
+  try {
+    return localStorage.getItem(ONLINE_FLAG) === '1';
+  } catch {
+    return false;
+  }
+}
+function writeOnlineFlag(on: boolean) {
+  try {
+    if (on) localStorage.setItem(ONLINE_FLAG, '1');
+    else localStorage.removeItem(ONLINE_FLAG);
+  } catch {
+    /* ignore */
+  }
+}
+
 function LocalGame({ players, options, onExit }: { players: PlayerConfig[]; options: GameOptions; onExit: () => void }) {
   const g = useLocalGame(players, options);
   return <GameScreen g={g} onExit={onExit} />;
@@ -57,7 +75,11 @@ export default function App() {
     const code = new URLSearchParams(location.search).get('room');
     return code ? code.toUpperCase().slice(0, 6) : null;
   }, []);
-  const [mode, setMode] = useState<Mode>(inviteCode ? 'online' : 'home');
+  const [mode, setModeState] = useState<Mode>(inviteCode || readOnlineFlag() ? 'online' : 'home');
+  const setMode = (m: Mode) => {
+    writeOnlineFlag(m === 'online');
+    setModeState(m);
+  };
   const [players, setPlayers] = useState<PlayerConfig[] | null>(null);
   const [options, setOptions] = useState<GameOptions>({});
   const [gameKey, setGameKey] = useState(0);

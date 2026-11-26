@@ -44,6 +44,8 @@ export interface LastMove {
   wild: boolean;
   /** How many sequences this move completed. */
   sequencesMade: number;
+  /** For removals: the team whose chip was taken. */
+  removedTeam?: number;
 }
 
 export interface GameState {
@@ -310,10 +312,11 @@ export function applyAction(prev: GameState, action: Action, now = Date.now()): 
       if (!legal) throw new IllegalMoveError('You cannot remove that chip.');
       removeFromHand(player, action.card);
       state.discardPile.push(action.card);
+      const removedTeam = state.grid[action.pos.r][action.pos.c]!;
       state.grid[action.pos.r][action.pos.c] = null;
       state.wildCells = state.wildCells.filter((p) => p.r !== action.pos.r || p.c !== action.pos.c);
       state.log.push(`${player.name} removed a chip with ${action.card} (one-eyed Jack).`);
-      state.lastMove = { playerId: player.id, card: action.card, pos: action.pos, kind: 'remove', wild: false, sequencesMade: 0 };
+      state.lastMove = { playerId: player.id, card: action.card, pos: action.pos, kind: 'remove', wild: false, sequencesMade: 0, removedTeam };
       drawCard(state, player);
       endTurn(state, now);
       return state;

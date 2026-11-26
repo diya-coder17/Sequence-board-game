@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import type { ReactNode } from 'react';
 import type { Player, TeamColor } from '../../engine';
+import type { HeadToHead } from '../../net/protocol';
 
 
 function Overlay({ children, onClose }: { children: ReactNode; onClose?: () => void }) {
@@ -51,6 +52,9 @@ export function GameOverModal({
   players,
   myTeam,
   rematchLabel,
+  rematchWanted,
+  rematchVoted,
+  headToHead,
   onRematch,
   onNewGame,
 }: {
@@ -59,6 +63,9 @@ export function GameOverModal({
   players: Player[];
   myTeam: number | null;
   rematchLabel: string;
+  rematchWanted?: string[];
+  rematchVoted?: boolean;
+  headToHead?: HeadToHead[] | null;
   onRematch: () => void;
   onNewGame: () => void;
 }) {
@@ -79,8 +86,22 @@ export function GameOverModal({
         <p>
           {youLost ? `${names.join(' & ')} completed the required sequences first.` : `Congratulations ${names.join(' & ')} — the required sequences are complete.`}
         </p>
+        {headToHead && headToHead.length > 0 && (
+          <div className="h2h">
+            {headToHead.map((h) => (
+              <span className="pill" key={h.opponentId}>
+                vs {h.opponent}: {h.wins}–{h.losses} in {h.games} game{h.games === 1 ? '' : 's'}
+              </span>
+            ))}
+          </div>
+        )}
+        {rematchWanted && rematchWanted.length > 0 && !rematchVoted && (
+          <p className="rematch-note">
+            {rematchWanted.join(' & ')} want{rematchWanted.length === 1 ? 's' : ''} a rematch!
+          </p>
+        )}
         <div className="row">
-          <button className="btn btn-primary" onClick={onRematch}>
+          <button className="btn btn-primary" onClick={onRematch} disabled={rematchVoted}>
             {rematchLabel}
           </button>
           <button className="btn" onClick={onNewGame}>

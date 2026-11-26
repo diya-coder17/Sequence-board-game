@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { DEFAULT_TEAM_COLORS, sequencesToWin } from '../../engine';
 import { toGameOptions, type OptionsValue } from '../gameOptions';
 import { GameOptionsPanel } from './GameOptionsPanel';
+import { AccountPanel } from './AccountPanel';
 import { ONLINE_PLAYER_COUNTS } from '../../net/protocol';
 import type { OnlineSession } from '../hooks/useOnlineGame';
 
@@ -75,9 +76,13 @@ export function OnlineLobby({ session, initialCode, onBack }: Props) {
           value={draftName}
           maxLength={16}
           placeholder="e.g. Diya"
+          disabled={!!session.user}
+          title={session.user ? 'Signed-in players use their account name' : undefined}
           onChange={(e) => setDraftName(e.target.value)}
           onBlur={commitName}
         />
+
+        <AccountPanel session={session} />
 
         <div className="tabs">
           <button className={tab === 'quick' ? 'active' : ''} onClick={() => setTab('quick')}>

@@ -63,6 +63,9 @@ export function GameScreen({ g, onExit }: Props) {
           <button className="btn btn-ghost btn-sm" onClick={onExit}>
             Quit
           </button>
+          <button className="btn btn-ghost btn-sm mobile-only" onClick={() => document.querySelector('.sidebar')?.scrollIntoView({ behavior: 'smooth' })} aria-label="Show players and log">
+            ☰
+          </button>
         </div>
       </header>
 
@@ -137,6 +140,13 @@ export function GameScreen({ g, onExit }: Props) {
       </footer>
 
       <Toast message={g.error} />
+      <AnimatePresence>
+        {g.connection && (
+          <motion.div className="reconnect-bar" role="status" initial={{ y: -40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -40, opacity: 0 }}>
+            <span className="spinner" /> Connection lost — reconnecting to the game server… your game is saved.
+          </motion.div>
+        )}
+      </AnimatePresence>
       <SequenceBanner show={!!g.banner} text={g.banner ?? ''} />
 
       <AnimatePresence>
@@ -171,6 +181,9 @@ export function GameScreen({ g, onExit }: Props) {
             players={state.players}
             myTeam={viewer?.team ?? null}
             rematchLabel={g.rematchLabel}
+            rematchWanted={g.rematchWanted}
+            rematchVoted={g.rematchVoted}
+            headToHead={g.headToHead}
             onRematch={g.rematch}
             onNewGame={onExit}
           />

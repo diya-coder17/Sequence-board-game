@@ -1,5 +1,5 @@
 import type { CardCode, LegalTarget, Pos } from '../../engine';
-import type { ClientGameState, SeatInfo } from '../../net/protocol';
+import type { ClientGameState, HeadToHead, SeatInfo } from '../../net/protocol';
 import type { GameEvent } from '../moveText';
 
 /** Everything GameScreen needs, regardless of whether the game runs locally or on a server. */
@@ -14,6 +14,11 @@ export interface GameController {
   event: GameEvent | null;
   error: string | null;
   rematchLabel: string;
+  /** Online: names who already asked for a rematch, and whether the viewer did. */
+  rematchWanted?: string[];
+  rematchVoted?: boolean;
+  /** Online: the viewer's record against the opponents in this room (logged-in players only). */
+  headToHead?: HeadToHead[] | null;
   roomCode?: string;
   connection?: string;
   /** Online only: who is currently connected. */

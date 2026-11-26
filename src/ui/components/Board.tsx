@@ -83,16 +83,18 @@ export function Board({ state, legal, hints, hoverPos, onHover, onCellClick, pre
                       <i />
                     </motion.span>
                   )}
-                  {isLast && lastKind === 'remove' && (
+                  {isLast && lastKind === 'remove' && owner === null && (
                     <motion.span
                       key={`removed-${state.turn}`}
-                      className="removed-mark"
-                      aria-hidden
-                      initial={{ opacity: 1, scale: 1.4 }}
-                      animate={{ opacity: 0, scale: 0.6 }}
-                      transition={{ duration: 2.2, ease: 'easeOut' }}
+                      className={`removed-mark ${state.lastMove!.removedTeam !== undefined ? state.teamColors[state.lastMove!.removedTeam] : ''}`}
+                      aria-label="Chip removed here by a one-eyed Jack"
+                      title="A one-eyed Jack removed a chip here"
+                      initial={{ opacity: 0, scale: 1.3 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.3 }}
                     >
-                      ✕
+                      <i className="removed-ghost" />
+                      <b>✕</b>
                     </motion.span>
                   )}
                 </button>

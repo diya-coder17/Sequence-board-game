@@ -172,7 +172,7 @@ describe('wild-jack visibility', () => {
     g = giveHand(g, 1, ['JS', 'JH', '4S', '5S', '6S', '7S', '8S']);
     g = applyAction(g, { type: 'REMOVE', playerId: 1, card: 'JS', pos: { r: 4, c: 4 } });
     expect(g.wildCells).toEqual([]);
-    expect(g.lastMove).toMatchObject({ wild: false, kind: 'remove' });
+    expect(g.lastMove).toMatchObject({ wild: false, kind: 'remove', removedTeam: 0 });
   });
 });
 

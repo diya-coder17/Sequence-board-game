@@ -98,14 +98,16 @@ describe('RoomManager', () => {
     expect(room.game!.players[0].hand).toHaveLength(7);
   });
 
-  it('requires everyone to agree to a rematch', () => {
+  it('requires everyone to agree to a rematch and reports who wants one', () => {
     const m = new RoomManager();
     const room = m.createRoom('a', 'Ann', 2, 2);
     m.joinRoom('b', 'Bob', room.code);
     m.startGame('a');
     room.status = 'finished';
     expect(m.voteRematch('a').restarted).toBe(false);
+    expect(m.roomInfo(room, 'b').rematchWanted).toEqual(['Ann']);
     expect(m.voteRematch('b').restarted).toBe(true);
     expect(room.status).toBe('playing');
+    expect(m.roomInfo(room, 'b').rematchWanted).toEqual([]);
   });
 });

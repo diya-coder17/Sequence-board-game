@@ -6,6 +6,22 @@ export interface SeatInfo {
   team: number;
   connected: boolean;
   isHost: boolean;
+  /** Account id when the player is logged in. */
+  userId: string | null;
+}
+
+export interface PublicUser {
+  id: string;
+  username: string;
+}
+
+export interface HeadToHead {
+  opponentId: string;
+  opponent: string;
+  games: number;
+  wins: number;
+  losses: number;
+  lastPlayedAt: number;
 }
 
 export interface RoomInfo {
@@ -18,6 +34,8 @@ export interface RoomInfo {
   status: 'waiting' | 'playing' | 'finished';
   isPrivate: boolean;
   mySeat: number;
+  /** Names of players who have asked for a rematch (finished games only). */
+  rematchWanted: string[];
 }
 
 /**
@@ -32,7 +50,13 @@ export type ClientGameState = GameState & {
 };
 
 export type ClientMessage =
-  | { type: 'hello'; token: string | null; name: string }
+  | { type: 'hello'; token: string | null; name: string; session: string | null }
+  | { type: 'register'; username: string; password: string }
+  | { type: 'login'; username: string; password: string }
+  | { type: 'logout' }
+  | { type: 'stats' }
+  | { type: 'ping' }
+  | { type: 'resync' }
   | { type: 'set_name'; name: string }
   | { type: 'create_room'; name: string; playerCount: number; teamCount: number; options: GameOptions }
   | { type: 'join_room'; code: string }
@@ -45,7 +69,10 @@ export type ClientMessage =
   | { type: 'rematch' };
 
 export type ServerMessage =
-  | { type: 'welcome'; token: string; name: string; online: number }
+  | { type: 'welcome'; token: string; name: string; online: number; user: PublicUser | null }
+  | { type: 'auth'; user: PublicUser | null; session: string | null; message?: string }
+  | { type: 'stats'; entries: HeadToHead[] }
+  | { type: 'pong' }
   | { type: 'room'; room: RoomInfo }
   | { type: 'state'; state: ClientGameState; mySeat: number }
   | { type: 'left' }
