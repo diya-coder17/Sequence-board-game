@@ -5,6 +5,11 @@ two decks, coloured chips, wild and one-eyed Jacks, dead-card exchange, and 2- o
 Play online (quick match or a private room with an invite link), against the computer, or with
 friends on one screen.
 
+## Play it online
+
+- **Game:** https://sequence-board-game-two.vercel.app (web app on Vercel)
+- **Game server:** https://sequence-online-23hl.onrender.com (WebSocket server on Render, free tier — may take up to a minute to wake)
+
 ## Run it
 
 ```bash
