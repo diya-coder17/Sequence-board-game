@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { TEAM_COLORS, sequencesToWin } from '../../engine';
+import { DEFAULT_TEAM_COLORS, sequencesToWin } from '../../engine';
 import type { OnlineSession } from '../hooks/useOnlineGame';
+import { COLOR_LABEL } from '../gameOptions';
 
 interface Props {
   session: OnlineSession;
 }
-
-const TEAM_LABEL = ['Blue', 'Green', 'Red'];
 
 export function RoomScreen({ session }: Props) {
   const room = session.room!;
@@ -14,6 +13,8 @@ export function RoomScreen({ session }: Props) {
   const link = `${location.origin}${location.pathname}?room=${room.code}`;
   const me = room.seats[room.mySeat];
   const full = room.seats.length === room.playerCount;
+  // Tolerate an older server that doesn't send options yet.
+  const options = room.options ?? { teamColors: DEFAULT_TEAM_COLORS.slice(0, room.teamCount), sequencesToWin: sequencesToWin(room.teamCount), turnSeconds: 0 };
 
   const copy = async (text: string, what: 'link' | 'code') => {
     try {
@@ -33,10 +34,10 @@ export function RoomScreen({ session }: Props) {
             ← Leave room
           </button>
           <span className="pill">
-            {room.playerCount} players · {room.teamCount} teams · first to {sequencesToWin(room.teamCount)}
+            {room.playerCount} players · {room.teamCount} teams
           </span>
         </div>
-        <h1 style={{ fontSize: 30, color: 'var(--gold-300)' }}>Private room</h1>
+        <h1 style={{ fontSize: 30, color: 'var(--gold-300)' }}>{room.name}</h1>
         <p className="subtitle">Share the code or the link. The game starts when all seats are filled.</p>
 
         <div className="share-box">
@@ -55,6 +56,18 @@ export function RoomScreen({ session }: Props) {
           <div className="share-link">{link}</div>
         </div>
 
+        <div className="option-summary">
+          <span className="pill">
+            First to {options.sequencesToWin} sequence{options.sequencesToWin > 1 ? 's' : ''}
+          </span>
+          <span className="pill">{options.turnSeconds ? `${options.turnSeconds}s per turn` : 'No turn timer'}</span>
+          {options.teamColors.map((c, i) => (
+            <span className="pill" key={c}>
+              <span className={`chip ${c} inline-chip`} /> Team {i + 1}: {COLOR_LABEL[c]}
+            </span>
+          ))}
+        </div>
+
         <span className="field-label" style={{ marginTop: 22 }}>
           Seats ({room.seats.length}/{room.playerCount})
         </span>
@@ -64,14 +77,14 @@ export function RoomScreen({ session }: Props) {
             const team = i % room.teamCount;
             return (
               <div className={`player-row seat ${seat ? '' : 'empty'}`} key={i}>
-                <span className="team-dot" style={{ background: `var(--team-${TEAM_COLORS[team]})` }} />
+                <span className={`chip ${options.teamColors[team]} inline-chip`} />
                 <span className="seat-name">
                   {seat ? seat.name : 'Waiting for a player…'}
                   {seat?.isHost && <span className="pill tiny">Host</span>}
                   {seat && i === room.mySeat && <span className="pill tiny">You</span>}
                   {seat && !seat.connected && <span className="pill tiny warn">Disconnected</span>}
                 </span>
-                <span className="seat-team">Team {TEAM_LABEL[team]}</span>
+                <span className="seat-team">Team {team + 1}</span>
               </div>
             );
           })}

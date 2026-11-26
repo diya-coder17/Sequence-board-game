@@ -6,6 +6,7 @@ import {
   forcePass,
   handSizeFor,
   isDeadCard,
+  isTurnExpired,
   legalTargets,
   sequencesToWin,
   validatePlayers,
@@ -46,6 +47,37 @@ describe('setup', () => {
   it('requires 2 or 3 sequences accordingly', () => {
     expect(sequencesToWin(2)).toBe(2);
     expect(sequencesToWin(3)).toBe(1);
+  });
+
+  it('applies game options and validates them', () => {
+    const g = createGame(two, 1, { teamColors: ['purple', 'gold'], sequencesToWin: 3, turnSeconds: 30 }, 1000);
+    expect(g.teamColors).toEqual(['purple', 'gold']);
+    expect(g.targetSequences).toBe(3);
+    expect(g.turnSeconds).toBe(30);
+    expect(g.turnStartedAt).toBe(1000);
+    expect(createGame(two, 1).targetSequences).toBe(2);
+    expect(createGame(two, 1).teamColors).toEqual(['blue', 'green']);
+    expect(() => createGame(two, 1, { teamColors: ['blue', 'blue'] })).toThrow(/different/);
+    expect(() => createGame(two, 1, { sequencesToWin: 4 })).toThrow(/1, 2 or 3/);
+    expect(() => createGame(two, 1, { turnSeconds: -5 })).toThrow(/timer/);
+  });
+
+  it('a custom sequences-to-win target ends the game accordingly', () => {
+    let g = createGame(two, 1, { sequencesToWin: 1 });
+    for (let c = 1; c <= 3; c++) g.grid[0][c] = 0;
+    g = giveHand(g, 0, ['JD', '3S', '4S', '5S', '6S', '7S', '8S']);
+    g = applyAction(g, { type: 'PLACE', playerId: 0, card: 'JD', pos: { r: 0, c: 4 } });
+    expect(g.winner).toBe(0);
+  });
+
+  it('tracks turn start time and expiry', () => {
+    let g = createGame(two, 1, { turnSeconds: 30 }, 0);
+    expect(isTurnExpired(g, 29_999)).toBe(false);
+    expect(isTurnExpired(g, 30_000)).toBe(true);
+    g = giveHand(g, 0, ['2S', '3S', '4S', '5S', '6S', '7S', '8S']);
+    g = applyAction(g, { type: 'PLACE', playerId: 0, card: '2S', pos: positionsFor('2S')[0] }, 5_000);
+    expect(g.turnStartedAt).toBe(5_000);
+    expect(isTurnExpired(createGame(two, 1, {}, 0), 10 ** 9)).toBe(false);
   });
 
   it('rejects bad team arrangements', () => {

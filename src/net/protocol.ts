@@ -1,5 +1,5 @@
 /** Messages exchanged between the browser and the game server. Shared by both sides. */
-import type { Action, GameState, PlayerConfig } from '../engine';
+import type { Action, GameOptions, GameState, PlayerConfig } from '../engine';
 
 export interface SeatInfo {
   name: string;
@@ -10,8 +10,10 @@ export interface SeatInfo {
 
 export interface RoomInfo {
   code: string;
+  name: string;
   playerCount: number;
   teamCount: number;
+  options: Required<GameOptions>;
   seats: SeatInfo[];
   status: 'waiting' | 'playing' | 'finished';
   isPrivate: boolean;
@@ -32,7 +34,7 @@ export type ClientGameState = GameState & {
 export type ClientMessage =
   | { type: 'hello'; token: string | null; name: string }
   | { type: 'set_name'; name: string }
-  | { type: 'create_room'; playerCount: number; teamCount: number }
+  | { type: 'create_room'; name: string; playerCount: number; teamCount: number; options: GameOptions }
   | { type: 'join_room'; code: string }
   | { type: 'leave_room' }
   | { type: 'quick_match' }
@@ -48,7 +50,7 @@ export type ServerMessage =
   | { type: 'state'; state: ClientGameState; mySeat: number }
   | { type: 'left' }
   | { type: 'queue'; searching: boolean; waiting: number }
-  | { type: 'event'; kind: 'info' | 'wild' | 'remove' | 'sequence' | 'warning'; message: string }
+  | { type: 'event'; kind: 'info' | 'wild' | 'remove' | 'sequence' | 'warning' | 'timeout'; message: string }
   | { type: 'error'; message: string };
 
 export const ONLINE_PLAYER_COUNTS = [2, 3, 4, 6] as const;

@@ -4,10 +4,14 @@
 import {
   IllegalMoveError,
   applyAction,
+  chooseAIMove,
   createGame,
   forcePass,
   hasAnyMove,
+  isTurnExpired,
+  resolveOptions,
   type Action,
+  type GameOptions,
   type GameState,
 } from '../src/engine';
 import { roomPlayerConfigs, toClientState, type RoomInfo, type SeatInfo, type ServerMessage } from '../src/net/protocol';
@@ -18,8 +22,10 @@ export interface Seat extends SeatInfo {
 
 export interface Room {
   code: string;
+  name: string;
   playerCount: number;
   teamCount: number;
+  options: Required<GameOptions>;
   seats: Seat[];
   status: 'waiting' | 'playing' | 'finished';
   isPrivate: boolean;
@@ -58,14 +64,26 @@ export class RoomManager {
     return undefined;
   }
 
-  createRoom(token: string, name: string, playerCount: number, teamCount: number, isPrivate = true): Room {
+  createRoom(
+    token: string,
+    name: string,
+    playerCount: number,
+    teamCount: number,
+    isPrivate = true,
+    roomName = '',
+    options: GameOptions = {},
+  ): Room {
     if (this.roomOf(token)) throw new Error('You are already in a room.');
     if (![2, 3, 4, 6].includes(playerCount)) throw new Error('Online rooms support 2, 3, 4 or 6 players.');
     if (![2, 3].includes(teamCount) || playerCount % teamCount !== 0) throw new Error('Invalid team setup.');
+    const resolved = resolveOptions(teamCount, options);
+    const cleanRoomName = String(roomName ?? '').replace(/[^\p{L}\p{N} _.'!&-]/gu, '').trim().slice(0, 32);
     const room: Room = {
       code: this.newCode(),
+      name: cleanRoomName || `${name}'s room`,
       playerCount,
       teamCount,
+      options: resolved,
       seats: [{ token, name, team: 0, connected: true, isHost: true }],
       status: 'waiting',
       isPrivate,
@@ -136,10 +154,25 @@ export class RoomManager {
     const seat = room.seats.find((s) => s.token === token)!;
     if (!seat.isHost) throw new Error('Only the host can start the game.');
     if (room.seats.length !== room.playerCount) throw new Error('Waiting for more players to join.');
-    room.game = createGame(roomPlayerConfigs(room.seats), seed);
+    room.game = createGame(roomPlayerConfigs(room.seats), seed, room.options);
     room.status = 'playing';
     room.rematchVotes.clear();
     return room;
+  }
+
+  /**
+   * Turn timer ran out: play for the current seat automatically (a sensible move, or a pass).
+   * Returns null when nothing was due.
+   */
+  autoPlay(code: string, now = Date.now()): { room: Room; playerName: string } | null {
+    const room = this.rooms.get(code);
+    if (!room?.game || room.status !== 'playing' || !isTurnExpired(room.game, now)) return null;
+    const seat = room.game.currentPlayer;
+    const playerName = room.game.players[seat].name;
+    const move = chooseAIMove(room.game);
+    room.game = move ? applyAction(room.game, move, now) : forcePass(room.game, seat, now);
+    if (room.game.winner !== null) room.status = 'finished';
+    return { room, playerName };
   }
 
   applyAction(token: string, action: Action): Room {
@@ -168,7 +201,7 @@ export class RoomManager {
     if (room.status !== 'finished') throw new Error('The game is still running.');
     room.rematchVotes.add(token);
     if (room.rematchVotes.size === room.seats.length) {
-      room.game = createGame(roomPlayerConfigs(room.seats), seed);
+      room.game = createGame(roomPlayerConfigs(room.seats), seed, room.options);
       room.status = 'playing';
       room.rematchVotes.clear();
       return { room, restarted: true };
@@ -200,8 +233,10 @@ export class RoomManager {
   roomInfo(room: Room, token: string): RoomInfo {
     return {
       code: room.code,
+      name: room.name,
       playerCount: room.playerCount,
       teamCount: room.teamCount,
+      options: room.options,
       seats: room.seats.map(({ name, team, connected, isHost }) => ({ name, team, connected, isHost })),
       status: room.status,
       isPrivate: room.isPrivate,

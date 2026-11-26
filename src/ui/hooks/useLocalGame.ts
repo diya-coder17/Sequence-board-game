@@ -7,6 +7,7 @@ import {
   forcePass,
   hasAnyMove,
   type Action,
+  type GameOptions,
   type GameState,
   type PlayerConfig,
 } from '../../engine';
@@ -18,12 +19,16 @@ import { useSelection } from './useSelection';
 const AI_DELAY_MS = 900;
 
 /** Local play: humans sharing one screen and/or AI opponents. */
-export function useLocalGame(configs: PlayerConfig[]): GameController {
-  const [state, setState] = useState<GameState>(() => createGame(configs));
+export function useLocalGame(configs: PlayerConfig[], options: GameOptions = {}): GameController {
+  const [state, setState] = useState<GameState>(() => createGame(configs, Date.now(), options));
   const [error, setError] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
   const [event, setEvent] = useState<GameEvent | null>(null);
   const [handoffAck, setHandoffAck] = useState(0);
+  // Clock reading for when the current human turn became actionable. Updated from the event
+  // handlers that hand a turn to a human: the AI's move, the pass-the-device acknowledgement,
+  // the timer's auto-play, and a rematch.
+  const [turnStartedLocal, setTurnStartedLocal] = useState(() => Date.now());
   const prevSeqCount = useRef(0);
   const eventId = useRef(0);
 
@@ -85,11 +90,31 @@ export function useLocalGame(configs: PlayerConfig[]): GameController {
         if (!move) return hasAnyMove(prev, prev.currentPlayer) ? prev : forcePass(prev, prev.currentPlayer);
         return applyAction(prev, move);
       });
+      setTurnStartedLocal(Date.now());
     }, AI_DELAY_MS);
     return () => clearTimeout(t);
   }, [state.currentPlayer, state.turn, state.winner, current.isAI]);
 
-  const sel = useSelection(state, current.id, isHumanTurn && !needsHandoff, dispatch);
+  const canAct = isHumanTurn && !needsHandoff;
+  const sel = useSelection(state, current.id, canAct, dispatch);
+
+
+  // Turn timer: when a human runs out of time, play a sensible move for them (or pass).
+  useEffect(() => {
+    if (!canAct || state.turnSeconds <= 0) return;
+    const t = setTimeout(() => {
+      setState((prev) => {
+        if (prev.winner !== null || prev.currentPlayer !== current.id) return prev;
+        const move = chooseAIMove(prev);
+        const next = move ? applyAction(prev, move) : hasAnyMove(prev, prev.currentPlayer) ? prev : forcePass(prev, prev.currentPlayer);
+        next.log.push(`${current.name} ran out of time — a move was played automatically.`);
+        return next;
+      });
+      setEvent({ id: ++eventId.current, kind: 'timeout', message: `${current.name} ran out of time — a move was played automatically.` });
+      setTurnStartedLocal(Date.now());
+    }, state.turnSeconds * 1000);
+    return () => clearTimeout(t);
+  }, [canAct, state.turnSeconds, state.turn, current.id, current.name]);
 
   const pass = useCallback(() => {
     setState((prev) => {
@@ -101,20 +126,25 @@ export function useLocalGame(configs: PlayerConfig[]): GameController {
       }
     });
   }, []);
-  const acknowledgeHandoff = useCallback(() => setHandoffAck(current.id), [current.id]);
+  const acknowledgeHandoff = useCallback(() => {
+    setHandoffAck(current.id);
+    setTurnStartedLocal(Date.now());
+  }, [current.id]);
   const rematch = useCallback(() => {
-    setState(createGame(configs));
+    setState(createGame(configs, Date.now(), options));
+    setTurnStartedLocal(Date.now());
     setHandoffAck(0);
     setEvent(null);
     prevSeqCount.current = 0;
-  }, [configs]);
+  }, [configs, options]);
 
   const view = useMemo(() => toClientState(state, viewerId), [state, viewerId]);
 
   return {
     state: view,
     viewerId,
-    canAct: isHumanTurn && !needsHandoff,
+    canAct,
+    turnStartedLocal,
     waitingText: current.isAI && state.winner === null ? `${current.name} is thinking…` : null,
     needsHandoff,
     banner,

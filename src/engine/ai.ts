@@ -1,7 +1,7 @@
 import { isOneEyedJack, isTwoEyedJack, type CardCode } from './cards';
 import { BOARD_SIZE, isCorner, type Pos } from './board';
 import { ownedBy, type ChipGrid } from './sequences';
-import { isDeadCard, legalTargets, sequencesToWin, type Action, type GameState } from './rules';
+import { isDeadCard, legalTargets, type Action, type GameState } from './rules';
 
 const DIRS: Pos[] = [
   { r: 0, c: 1 },
@@ -95,7 +95,7 @@ export function chooseAIMove(state: GameState, rng: () => number = Math.random):
 
   const candidates: Candidate[] = [];
   const mySeqs = state.sequences.filter((s) => s.team === team).length;
-  const needed = sequencesToWin(state.teamCount);
+  const needed = state.targetSequences;
 
   for (const card of new Set(player.hand)) {
     for (const target of legalTargets(state, player.id, card)) {

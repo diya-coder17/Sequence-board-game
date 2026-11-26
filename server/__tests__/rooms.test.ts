@@ -70,6 +70,34 @@ describe('RoomManager', () => {
     expect(m.rooms.has(room.code)).toBe(false);
   });
 
+  it('stores a room name and options, and applies them to the game', () => {
+    const m = new RoomManager();
+    const room = m.createRoom('a', 'Ann', 2, 2, true, "Ann's Theatre <script>", { teamColors: ['gold', 'teal'], sequencesToWin: 1, turnSeconds: 45 });
+    expect(room.name).toBe("Ann's Theatre script");
+    expect(m.createRoom('z', 'Zed', 2, 2).name).toBe("Zed's room");
+    m.joinRoom('b', 'Bob', room.code);
+    m.startGame('a', 3);
+    expect(room.game?.teamColors).toEqual(['gold', 'teal']);
+    expect(room.game?.targetSequences).toBe(1);
+    expect(room.game?.turnSeconds).toBe(45);
+    expect(m.roomInfo(room, 'b').options.sequencesToWin).toBe(1);
+    expect(() => m.createRoom('c', 'Cat', 2, 2, true, '', { teamColors: ['red', 'red'] })).toThrow(/different/);
+  });
+
+  it('auto-plays for a player whose turn timer expired', () => {
+    const m = new RoomManager();
+    const room = m.createRoom('a', 'Ann', 2, 2, true, '', { turnSeconds: 30 });
+    m.joinRoom('b', 'Bob', room.code);
+    m.startGame('a', 3);
+    const start = room.game!.turnStartedAt;
+    expect(m.autoPlay(room.code, start + 10_000)).toBeNull();
+    const result = m.autoPlay(room.code, start + 31_000);
+    expect(result?.playerName).toBe('Ann');
+    expect(room.game!.currentPlayer).toBe(1);
+    expect(room.game!.turnStartedAt).toBe(start + 31_000);
+    expect(room.game!.players[0].hand).toHaveLength(7);
+  });
+
   it('requires everyone to agree to a rematch', () => {
     const m = new RoomManager();
     const room = m.createRoom('a', 'Ann', 2, 2);

@@ -1,6 +1,6 @@
 import { BOARD_LAYOUT, cardLabel, type GameState } from '../engine';
 
-export type EventKind = 'info' | 'wild' | 'remove' | 'sequence' | 'warning';
+export type EventKind = 'info' | 'wild' | 'remove' | 'sequence' | 'warning' | 'timeout';
 export interface GameEvent {
   id: number;
   kind: EventKind;

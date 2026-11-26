@@ -18,6 +18,9 @@ export interface GameController {
   connection?: string;
   /** Online only: who is currently connected. */
   seats?: SeatInfo[];
+  roomName?: string;
+  /** Local clock reading when the current turn became actionable (drives the countdown). */
+  turnStartedLocal: number;
 
   selectedCard: CardCode | null;
   hoverCard: CardCode | null;

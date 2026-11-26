@@ -60,7 +60,7 @@ function send(token: string, message: ServerMessage) {
 function flush(out: Outbound[]) {
   for (const o of out) send(o.token, o.message);
 }
-function broadcastEvent(room: Room, kind: 'info' | 'wild' | 'remove' | 'sequence' | 'warning', message: string, except?: string) {
+function broadcastEvent(room: Room, kind: 'info' | 'wild' | 'remove' | 'sequence' | 'warning' | 'timeout', message: string, except?: string) {
   for (const s of room.seats) if (s.token !== except) send(s.token, { type: 'event', kind, message });
 }
 function onlineCount() {
@@ -71,6 +71,29 @@ function onlineCount() {
 function cleanName(name: unknown): string {
   const n = String(name ?? '').replace(/[^\p{L}\p{N} _.'-]/gu, '').trim().slice(0, 16);
   return n || 'Player';
+}
+
+/** One pending timer per room; re-armed after every state change. */
+const turnTimers = new Map<string, NodeJS.Timeout>();
+const TIMER_GRACE_MS = 1500; // network slack before the server plays for someone
+
+function scheduleTurnTimer(room: Room) {
+  const existing = turnTimers.get(room.code);
+  if (existing) clearTimeout(existing);
+  turnTimers.delete(room.code);
+  const g = room.game;
+  if (!g || room.status !== 'playing' || g.turnSeconds <= 0) return;
+  const due = g.turnStartedAt + g.turnSeconds * 1000 + TIMER_GRACE_MS - Date.now();
+  const t = setTimeout(() => {
+    turnTimers.delete(room.code);
+    const result = manager.autoPlay(room.code);
+    if (!result) return;
+    flush(manager.broadcastRoom(result.room));
+    broadcastEvent(result.room, 'timeout', `${result.playerName} ran out of time — a move was played automatically.`);
+    announceMove(result.room, '');
+    scheduleTurnTimer(result.room);
+  }, Math.max(0, due));
+  turnTimers.set(room.code, t);
 }
 
 /** Tell the other players what just happened, loudly for Jacks and sequences. */
@@ -96,6 +119,11 @@ function leaveCurrentRoom(client: Client) {
   const room = manager.roomOf(token);
   const result = manager.leaveRoom(token);
   send(token, { type: 'left' });
+  if (room && !manager.rooms.has(room.code)) {
+    const t = turnTimers.get(room.code);
+    if (t) clearTimeout(t);
+    turnTimers.delete(room.code);
+  }
   if (!room || !result) return;
   if (result.status === 'finished' && room.status === 'playing') {
     for (const s of result.seats) {
@@ -118,7 +146,7 @@ function handle(client: Client, msg: ClientMessage) {
       return;
     }
     case 'create_room': {
-      const room = manager.createRoom(token, client.name, Number(msg.playerCount), Number(msg.teamCount));
+      const room = manager.createRoom(token, client.name, Number(msg.playerCount), Number(msg.teamCount), true, msg.name, msg.options ?? {});
       flush(manager.broadcastRoom(room));
       return;
     }
@@ -155,18 +183,21 @@ function handle(client: Client, msg: ClientMessage) {
     case 'start_game': {
       const room = manager.startGame(token);
       flush(manager.broadcastRoom(room));
+      scheduleTurnTimer(room);
       return;
     }
     case 'action': {
       const room = manager.applyAction(token, msg.action);
       flush(manager.broadcastRoom(room));
       announceMove(room, token);
+      scheduleTurnTimer(room);
       return;
     }
     case 'pass': {
       const room = manager.pass(token);
       flush(manager.broadcastRoom(room));
       broadcastEvent(room, 'info', `${client.name} had no legal move and passed.`, token);
+      scheduleTurnTimer(room);
       return;
     }
     case 'rematch': {
@@ -174,6 +205,7 @@ function handle(client: Client, msg: ClientMessage) {
       if (restarted) {
         flush(manager.broadcastRoom(room));
         broadcastEvent(room, 'info', 'Rematch! New game started.');
+        scheduleTurnTimer(room);
       } else {
         broadcastEvent(room, 'info', `${client.name} wants a rematch (${room.rematchVotes.size}/${room.seats.length}).`);
       }
@@ -237,7 +269,11 @@ wss.on('connection', (ws) => {
 
 // Reap rooms nobody has been connected to, and forgotten clients.
 setInterval(() => {
-  manager.sweepAbandoned();
+  for (const code of manager.sweepAbandoned()) {
+    const t = turnTimers.get(code);
+    if (t) clearTimeout(t);
+    turnTimers.delete(code);
+  }
   for (const [token, c] of clients) if (!c.ws && !manager.roomOf(token)) clients.delete(token);
 }, 60_000).unref();
 

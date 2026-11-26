@@ -1,8 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import type { ReactNode } from 'react';
-import { TEAM_COLORS, type Player } from '../../engine';
+import type { Player, TeamColor } from '../../engine';
 
-const TEAM_LABEL = ['Blue', 'Green', 'Red'];
 
 function Overlay({ children, onClose }: { children: ReactNode; onClose?: () => void }) {
   return (
@@ -27,12 +26,12 @@ function Overlay({ children, onClose }: { children: ReactNode; onClose?: () => v
   );
 }
 
-export function PassDeviceModal({ player, onReady }: { player: Player; onReady: () => void }) {
+export function PassDeviceModal({ player, color, onReady }: { player: Player; color: TeamColor; onReady: () => void }) {
   return (
     <Overlay>
       <div className="modal">
         <div className="big-chip">
-          <span className={`chip ${TEAM_COLORS[player.team]}`} />
+          <span className={`chip ${color}`} />
         </div>
         <h2>{player.name}'s turn</h2>
         <p>Pass the device to {player.name}. Other players, look away!</p>
@@ -48,6 +47,7 @@ export function PassDeviceModal({ player, onReady }: { player: Player; onReady: 
 
 export function GameOverModal({
   winner,
+  color,
   players,
   myTeam,
   rematchLabel,
@@ -55,6 +55,7 @@ export function GameOverModal({
   onNewGame,
 }: {
   winner: number;
+  color: TeamColor;
   players: Player[];
   myTeam: number | null;
   rematchLabel: string;
@@ -69,12 +70,12 @@ export function GameOverModal({
       <div className="modal">
         <div className="big-chip">
           <motion.span
-            className={`chip ${TEAM_COLORS[winner]}`}
+            className={`chip ${color}`}
             animate={{ rotate: [0, -8, 8, 0], scale: [1, 1.08, 1] }}
             transition={{ duration: 1.4, repeat: Infinity, repeatDelay: 0.6 }}
           />
         </div>
-        <h2>{youWon ? 'You win!' : youLost ? 'You lose' : `Team ${TEAM_LABEL[winner]} wins!`}</h2>
+        <h2>{youWon ? 'You win!' : youLost ? 'You lose' : `Team ${winner + 1} wins!`}</h2>
         <p>
           {youLost ? `${names.join(' & ')} completed the required sequences first.` : `Congratulations ${names.join(' & ')} — the required sequences are complete.`}
         </p>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Action } from '../../engine';
+import type { Action, GameOptions } from '../../engine';
 import { GameClient, type ConnectionStatus } from '../../net/client';
 import type { ClientGameState, RoomInfo } from '../../net/protocol';
 import type { GameEvent } from '../moveText';
@@ -17,7 +17,7 @@ export interface OnlineSession {
   error: string | null;
   event: GameEvent | null;
   setName: (name: string) => void;
-  createRoom: (playerCount: number, teamCount: number) => void;
+  createRoom: (name: string, playerCount: number, teamCount: number, options: GameOptions) => void;
   joinRoom: (code: string) => void;
   leaveRoom: () => void;
   quickMatch: () => void;
@@ -41,6 +41,7 @@ export function useOnlineGame(): OnlineSession {
   const [error, setError] = useState<string | null>(null);
   const [event, setEvent] = useState<GameEvent | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
+  const [turnStartedLocal, setTurnStartedLocal] = useState(() => Date.now());
   const prevSeq = useRef(0);
   const eventId = useRef(0);
 
@@ -58,7 +59,10 @@ export function useOnlineGame(): OnlineSession {
           if (m.room.status === 'waiting') setState(null);
           break;
         case 'state':
-          setState(m.state);
+          setState((prev) => {
+            if (!prev || prev.turn !== m.state.turn || prev.seed !== m.state.seed) setTurnStartedLocal(Date.now());
+            return m.state;
+          });
           setMySeat(m.mySeat);
           break;
         case 'left':
@@ -142,14 +146,16 @@ export function useOnlineGame(): OnlineSession {
       error,
       rematchLabel: 'Rematch',
       roomCode: room.isPrivate ? room.code : undefined,
+      roomName: room.name,
       seats: room.seats,
+      turnStartedLocal,
       connection: status === 'open' ? undefined : status,
       ...sel,
       pass: () => client.send({ type: 'pass' }),
       acknowledgeHandoff: () => {},
       rematch: () => client.send({ type: 'rematch' }),
     };
-  }, [state, room, mySeat, canAct, banner, event, error, status, sel, client]);
+  }, [state, room, mySeat, canAct, banner, event, error, status, sel, client, turnStartedLocal]);
 
   return {
     status,
@@ -162,7 +168,7 @@ export function useOnlineGame(): OnlineSession {
     error,
     event,
     setName,
-    createRoom: (playerCount, teamCount) => client.send({ type: 'create_room', playerCount, teamCount }),
+    createRoom: (name, playerCount, teamCount, options) => client.send({ type: 'create_room', name, playerCount, teamCount, options }),
     joinRoom: (code) => client.send({ type: 'join_room', code: code.trim().toUpperCase() }),
     leaveRoom: () => client.send({ type: 'leave_room' }),
     quickMatch: () => client.send({ type: 'quick_match' }),
@@ -177,6 +183,10 @@ function emptyState(): ClientGameState {
     seed: 0,
     players: [],
     teamCount: 2,
+    teamColors: ['blue', 'green'],
+    targetSequences: 2,
+    turnSeconds: 0,
+    turnStartedAt: 0,
     grid: Array.from({ length: 10 }, () => Array(10).fill(null)),
     sequences: [],
     wildCells: [],

@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { TEAM_COLORS, sequencesToWin } from '../../engine';
 import type { ClientGameState, SeatInfo } from '../../net/protocol';
 
 interface Props {
@@ -9,7 +8,6 @@ interface Props {
   seats?: SeatInfo[];
 }
 
-const TEAM_LABEL = ['Blue', 'Green', 'Red'];
 
 export function Sidebar({ state, viewerId, thinking, seats }: Props) {
   const logRef = useRef<HTMLDivElement>(null);
@@ -17,7 +15,7 @@ export function Sidebar({ state, viewerId, thinking, seats }: Props) {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' });
   }, [state.log.length]);
 
-  const needed = sequencesToWin(state.teamCount);
+  const needed = state.targetSequences;
   const seqByTeam = (team: number) => state.sequences.filter((s) => s.team === team).length;
 
   return (
@@ -26,7 +24,7 @@ export function Sidebar({ state, viewerId, thinking, seats }: Props) {
         <h3>Players</h3>
         {state.players.map((p) => {
           const active = p.id === state.currentPlayer && state.winner === null;
-          const color = TEAM_COLORS[p.team];
+          const color = state.teamColors[p.team];
           return (
             <div key={p.id} className={`player-card ${active ? 'active' : ''}`}>
               <div className="avatar" style={{ background: `var(--team-${color})` }}>
@@ -41,7 +39,7 @@ export function Sidebar({ state, viewerId, thinking, seats }: Props) {
                   {active && thinking && <span className="spinner" />}
                 </div>
                 <div className="meta">
-                  Team {TEAM_LABEL[p.team]} · {state.handCounts[p.id] ?? p.hand.length} cards
+                  Team {p.team + 1} · {state.handCounts[p.id] ?? p.hand.length} cards
                 </div>
               </div>
               <div className="seq-dots" title={`${seqByTeam(p.team)} of ${needed} sequences`}>

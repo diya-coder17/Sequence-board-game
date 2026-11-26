@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { sequencesToWin } from '../../engine';
+import { DEFAULT_TEAM_COLORS, sequencesToWin } from '../../engine';
+import { toGameOptions, type OptionsValue } from '../gameOptions';
+import { GameOptionsPanel } from './GameOptionsPanel';
 import { ONLINE_PLAYER_COUNTS } from '../../net/protocol';
 import type { OnlineSession } from '../hooks/useOnlineGame';
 
@@ -25,10 +27,15 @@ export function OnlineLobby({ session, initialCode, onBack }: Props) {
   const [playerCount, setPlayerCount] = useState(2);
   const [teamCount, setTeamCount] = useState(2);
   const [tab, setTab] = useState<'quick' | 'create' | 'join'>(initialCode ? 'join' : 'quick');
+  const [roomName, setRoomName] = useState('');
+  const [options, setOptions] = useState<OptionsValue>({ teamColors: DEFAULT_TEAM_COLORS.slice(), sequencesToWin: 2, turnSeconds: 0 });
+  const [customSequences, setCustomSequences] = useState(false);
   const connected = session.status === 'open';
   const nameOk = draftName.trim().length > 0;
   const teamOptions = [2, 3].filter((t) => playerCount % t === 0);
   const effectiveTeams = teamOptions.includes(teamCount) ? teamCount : teamOptions[0];
+  const officialSequences = sequencesToWin(effectiveTeams);
+  const effectiveOptions: OptionsValue = { ...options, sequencesToWin: customSequences ? options.sequencesToWin : officialSequences };
 
   const commitName = () => {
     if (draftName.trim() && draftName.trim() !== session.name) session.setName(draftName);
@@ -40,7 +47,7 @@ export function OnlineLobby({ session, initialCode, onBack }: Props) {
 
   return (
     <div className="setup">
-      <div className="setup-card">
+      <div className="setup-card wide">
         <div className="lobby-head">
           <button className="btn btn-ghost btn-sm" onClick={onBack}>
             ← Back
@@ -106,6 +113,17 @@ export function OnlineLobby({ session, initialCode, onBack }: Props) {
 
         {tab === 'create' && (
           <div className="tab-panel">
+            <label className="field-label" htmlFor="room-name">
+              Room name
+            </label>
+            <input
+              id="room-name"
+              className="text-input"
+              value={roomName}
+              maxLength={32}
+              placeholder={`${draftName.trim() || 'Your'}'s theatre room`}
+              onChange={(e) => setRoomName(e.target.value)}
+            />
             <span className="field-label">Players</span>
             <div className="segmented">
               {ONLINE_PLAYER_COUNTS.map((n) => (
@@ -120,14 +138,27 @@ export function OnlineLobby({ session, initialCode, onBack }: Props) {
             <div className="segmented">
               {[2, 3].map((t) => (
                 <button key={t} className={t === effectiveTeams ? 'active' : ''} disabled={!teamOptions.includes(t)} onClick={() => setTeamCount(t)}>
-                  {t} teams · first to {sequencesToWin(t)}
+                  {t} teams
                 </button>
               ))}
             </div>
-            <p className="rules-summary" style={{ marginTop: 14 }}>
+            <GameOptionsPanel
+              teamCount={effectiveTeams}
+              value={effectiveOptions}
+              defaultSequences={officialSequences}
+              onChange={(next) => {
+                setOptions(next);
+                setCustomSequences(true);
+              }}
+            />
+            <p className="rules-summary" style={{ marginTop: 4 }}>
               You'll get a room code and a link to share. The game starts when every seat is filled.
             </p>
-            <button className="btn btn-primary" disabled={!connected || !nameOk} onClick={guard(() => session.createRoom(playerCount, effectiveTeams))}>
+            <button
+              className="btn btn-primary"
+              disabled={!connected || !nameOk}
+              onClick={guard(() => session.createRoom(roomName, playerCount, effectiveTeams, toGameOptions(effectiveOptions, effectiveTeams)))}
+            >
               Create private room
             </button>
           </div>

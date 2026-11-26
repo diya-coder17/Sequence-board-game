@@ -46,7 +46,8 @@ export function Board({ state, legal, hints, hoverPos, onHover, onCellClick, pre
               const key = posKey(r, c);
               const owner = state.grid[r][c];
               const target = legalMap.get(key);
-              const isLast = state.lastMove && state.lastMove.pos.r === r && state.lastMove.pos.c === c;
+              const isLast = !!state.lastMove && state.lastMove.pos.r === r && state.lastMove.pos.c === c;
+              const lastKind = isLast ? state.lastMove!.kind : null;
               const hovering = hoverPos && hoverPos.r === r && hoverPos.c === c;
               const cls = [
                 'cell',
@@ -72,16 +73,27 @@ export function Board({ state, legal, hints, hoverPos, onHover, onCellClick, pre
                 >
                   {card === FREE ? <span className="free-mark">Free</span> : <CardFace card={card} variant="mini" />}
                   <AnimatePresence>
-                    {owner !== null && <Chip key={`chip-${owner}`} team={owner} wild={wildSet.has(key)} />}
-                    {owner === null && hovering && target?.kind === 'place' && <Chip key="ghost" team={previewTeam} ghost />}
+                    {owner !== null && <Chip key={`chip-${owner}`} color={state.teamColors[owner]} wild={wildSet.has(key)} />}
+                    {owner === null && hovering && target?.kind === 'place' && <Chip key="ghost" color={state.teamColors[previewTeam]} ghost />}
                   </AnimatePresence>
-                  {isLast && (
+                  {isLast && lastKind === 'place' && (
+                    <motion.span key={`ripple-${state.turn}`} className={`last-ripple ${state.lastMove!.wild ? 'wild' : ''}`} aria-hidden>
+                      <i />
+                      <i />
+                      <i />
+                    </motion.span>
+                  )}
+                  {isLast && lastKind === 'remove' && (
                     <motion.span
-                      className="last-marker"
-                      initial={{ opacity: 0, scale: 1.3 }}
-                      animate={{ opacity: [0.9, 0.3, 0.9], scale: 1 }}
-                      transition={{ duration: 1.6, repeat: Infinity }}
-                    />
+                      key={`removed-${state.turn}`}
+                      className="removed-mark"
+                      aria-hidden
+                      initial={{ opacity: 1, scale: 1.4 }}
+                      animate={{ opacity: 0, scale: 0.6 }}
+                      transition={{ duration: 2.2, ease: 'easeOut' }}
+                    >
+                      ✕
+                    </motion.span>
                   )}
                 </button>
               );

@@ -1,12 +1,13 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useState } from 'react';
-import { TEAM_COLORS, isOneEyedJack, isTwoEyedJack } from '../../engine';
+import { isOneEyedJack, isTwoEyedJack } from '../../engine';
 import type { GameController } from '../hooks/controller';
 import { describeLastMove } from '../moveText';
 import { Board } from './Board';
 import { Hand } from './Hand';
 import { GameOverModal, PassDeviceModal, RulesModal, SequenceBanner, Toast } from './Modals';
 import { Sidebar } from './Sidebar';
+import { TurnTimer } from './TurnTimer';
 
 interface Props {
   g: GameController;
@@ -19,6 +20,7 @@ const EVENT_TITLE: Record<string, string> = {
   sequence: 'Sequence!',
   info: 'Update',
   warning: 'Heads up',
+  timeout: 'Time\'s up',
 };
 
 export function GameScreen({ g, onExit }: Props) {
@@ -47,7 +49,8 @@ export function GameScreen({ g, onExit }: Props) {
       <header className="topbar">
         <h1>Sequence</h1>
         <div className="right">
-          {g.roomCode && <span className="pill">Room {g.roomCode}</span>}
+          {g.roomName && <span className="pill room-name" title={g.roomName}>{g.roomName}</span>}
+          {g.roomCode && <span className="pill">Code {g.roomCode}</span>}
           {g.connection && (
             <span className="pill conn reconnecting">
               <i /> {g.connection}
@@ -79,8 +82,9 @@ export function GameScreen({ g, onExit }: Props) {
       <footer className="hand-bar">
         <div className="status">
           <div className="who">
-            {current && (
-              <span className={`chip ${TEAM_COLORS[current.team]}`} style={{ position: 'relative', width: 18, height: 18, left: 0, top: 0 }} />
+            {current && <span className={`chip ${state.teamColors[current.team]} inline-chip`} />}
+            {state.turnSeconds > 0 && state.winner === null && current && (
+              <TurnTimer seconds={state.turnSeconds} startedAt={g.turnStartedLocal} active={!g.needsHandoff} />
             )}
             {current?.name}
             {current?.isAI && <span className="pill tiny">AI</span>}
@@ -146,7 +150,9 @@ export function GameScreen({ g, onExit }: Props) {
             exit={{ x: 60, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 320, damping: 26 }}
           >
-            <span className="event-icon">{g.event.kind === 'wild' ? '🃏' : g.event.kind === 'remove' ? '✂️' : g.event.kind === 'sequence' ? '⭐' : 'ℹ️'}</span>
+            <span className="event-icon">
+              {g.event.kind === 'wild' ? '🃏' : g.event.kind === 'remove' ? '✂️' : g.event.kind === 'sequence' ? '⭐' : g.event.kind === 'timeout' ? '⏰' : 'ℹ️'}
+            </span>
             <div>
               <div className="event-title">{EVENT_TITLE[g.event.kind]}</div>
               <div className="event-msg">{g.event.message}</div>
@@ -156,11 +162,12 @@ export function GameScreen({ g, onExit }: Props) {
       </AnimatePresence>
 
       <AnimatePresence>
-        {g.needsHandoff && current && <PassDeviceModal key="pass" player={current} onReady={g.acknowledgeHandoff} />}
+        {g.needsHandoff && current && <PassDeviceModal key="pass" player={current} color={state.teamColors[current.team]} onReady={g.acknowledgeHandoff} />}
         {state.winner !== null && !g.banner && (
           <GameOverModal
             key="over"
             winner={state.winner}
+            color={state.teamColors[state.winner]}
             players={state.players}
             myTeam={viewer?.team ?? null}
             rematchLabel={g.rematchLabel}

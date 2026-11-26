@@ -14,12 +14,15 @@
   --card-red: #c0392b;
   --card-black: #1f2430;
 
-  --team-blue: #2d6cdf;
-  --team-blue-dark: #1b3f87;
-  --team-green: #2fa860;
-  --team-green-dark: #176b3a;
-  --team-red: #e04848;
-  --team-red-dark: #8a1f1f;
+  /* Chip palette: light (specular), mid, dark (rim) per colour */
+  --team-blue: #2d6cdf;   --team-blue-light: #8fb4ff;   --team-blue-dark: #15306e;
+  --team-green: #2fa860;  --team-green-light: #8ee6a9;  --team-green-dark: #0f4f2a;
+  --team-red: #e04848;    --team-red-light: #ffa3a3;    --team-red-dark: #6e1414;
+  --team-purple: #8b5cf6; --team-purple-light: #cdb7ff; --team-purple-dark: #3b1f7a;
+  --team-orange: #f0862a; --team-orange-light: #ffc28a; --team-orange-dark: #7a3b08;
+  --team-teal: #14b8a6;   --team-teal-light: #8af0e4;   --team-teal-dark: #085c53;
+  --team-gold: #d9a521;   --team-gold-light: #ffe08a;   --team-gold-dark: #6e4f05;
+  --team-pink: #ec4899;   --team-pink-light: #ffb0d6;   --team-pink-dark: #7a1646;
 
   --surface: rgba(255, 255, 255, 0.06);
   --surface-2: rgba(255, 255, 255, 0.1);

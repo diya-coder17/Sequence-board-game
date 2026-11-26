@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
-import { HAND_SIZE, TEAM_COLORS, sequencesToWin, validatePlayers, type PlayerConfig } from '../../engine';
+import { DEFAULT_TEAM_COLORS, HAND_SIZE, sequencesToWin, validatePlayers, type GameOptions, type PlayerConfig } from '../../engine';
+import { toGameOptions, type OptionsValue } from '../gameOptions';
+import { GameOptionsPanel } from './GameOptionsPanel';
 
 interface Props {
-  onStart: (players: PlayerConfig[]) => void;
+  onStart: (players: PlayerConfig[], options: GameOptions) => void;
   onBack: () => void;
 }
 
 const PLAYER_COUNTS = Object.keys(HAND_SIZE).map(Number);
-const TEAM_LABEL = ['Blue', 'Green', 'Red'];
 const DEFAULT_NAMES = ['Alex', 'Sam', 'Jordan', 'Riley', 'Casey', 'Morgan', 'Taylor', 'Quinn', 'Avery', 'Drew', 'Jamie', 'Reese'];
 
 interface Seat {
@@ -22,9 +23,13 @@ export function SetupScreen({ onStart, onBack }: Props) {
     { name: 'You', isAI: false },
     { name: 'Computer', isAI: true },
   ]);
+  const [options, setOptions] = useState<OptionsValue>({ teamColors: DEFAULT_TEAM_COLORS.slice(), sequencesToWin: 2, turnSeconds: 0 });
+  const [customSequences, setCustomSequences] = useState(false);
 
   const teamOptions = useMemo(() => [2, 3].filter((t) => count % t === 0), [count]);
   const effectiveTeams = teamOptions.includes(teams) ? teams : teamOptions[0];
+  const officialSequences = sequencesToWin(effectiveTeams);
+  const effectiveOptions: OptionsValue = { ...options, sequencesToWin: customSequences ? options.sequencesToWin : officialSequences };
 
   const players: PlayerConfig[] = useMemo(
     () =>
@@ -61,7 +66,7 @@ export function SetupScreen({ onStart, onBack }: Props) {
 
   return (
     <div className="setup">
-      <div className="setup-card">
+      <div className="setup-card wide">
         <div className="lobby-head">
           <button className="btn btn-ghost btn-sm" onClick={onBack}>
             ← Back
@@ -93,7 +98,7 @@ export function SetupScreen({ onStart, onBack }: Props) {
             <div className="segmented">
               {[2, 3].map((t) => (
                 <button key={t} className={t === effectiveTeams ? 'active' : ''} disabled={!teamOptions.includes(t)} onClick={() => setTeams(t)}>
-                  {t} teams · first to {sequencesToWin(t)}
+                  {t} teams
                 </button>
               ))}
             </div>
@@ -101,7 +106,7 @@ export function SetupScreen({ onStart, onBack }: Props) {
             <div className="player-list">
               {players.map((p, i) => (
                 <div className="player-row" key={i} style={{ animationDelay: `${i * 30}ms` }}>
-                  <span className="team-dot" style={{ background: `var(--team-${TEAM_COLORS[p.team]})` }} title={`Team ${TEAM_LABEL[p.team]}`} />
+                  <span className={`chip ${effectiveOptions.teamColors[p.team]} inline-chip`} title={`Team ${p.team + 1}`} />
                   <input value={seats[i]?.name ?? p.name} onChange={(e) => update(i, { name: e.target.value })} aria-label={`Player ${i + 1} name`} maxLength={16} />
                   <div className="toggle">
                     <button className={!p.isAI ? 'active' : ''} onClick={() => update(i, { isAI: false })}>
@@ -117,30 +122,24 @@ export function SetupScreen({ onStart, onBack }: Props) {
           </div>
 
           <div>
-            <span className="field-label">Quick rules</span>
-            <ul className="rules-summary">
-              <li>
-                <strong>Play a card</strong>, place a chip on a matching board space, draw a new card. Each card appears twice on the board.
-              </li>
-              <li>
-                <strong>Five in a row</strong> is a sequence. {effectiveTeams === 2 ? 'Two sequences win.' : 'One sequence wins.'} Free corners count for everyone.
-              </li>
-              <li>
-                <strong>Two-eyed Jacks</strong> (♦ ♣) go anywhere. <strong>One-eyed Jacks</strong> (♥ ♠) remove an opponent's chip.
-              </li>
-              <li>
-                <strong>Dead cards</strong> (both spaces taken) can be swapped once per turn.
-              </li>
-              <li>
-                Each player holds <strong>{HAND_SIZE[count]} cards</strong>. Teammates take turns in alternating order.
-              </li>
-            </ul>
+            <GameOptionsPanel
+              teamCount={effectiveTeams}
+              value={effectiveOptions}
+              defaultSequences={officialSequences}
+              onChange={(next) => {
+                setOptions(next);
+                setCustomSequences(true);
+              }}
+            />
+            <p className="rules-summary" style={{ marginTop: 14 }}>
+              Each player holds <strong>{HAND_SIZE[count]} cards</strong>. Two-eyed Jacks are wild, one-eyed Jacks remove a chip, free corners count for everyone.
+            </p>
           </div>
         </div>
 
         <div className="setup-footer">
           <span className="error-text">{error ?? ''}</span>
-          <button className="btn btn-primary" disabled={!!error} onClick={() => onStart(players)}>
+          <button className="btn btn-primary" disabled={!!error} onClick={() => onStart(players, toGameOptions(effectiveOptions, effectiveTeams))}>
             Start game
           </button>
         </div>

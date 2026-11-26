@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { PlayerConfig } from './engine';
+import type { GameOptions, PlayerConfig } from './engine';
 import { GameScreen } from './ui/components/GameScreen';
 import { HomeScreen } from './ui/components/HomeScreen';
 import { OnlineLobby } from './ui/components/OnlineLobby';
@@ -10,8 +10,8 @@ import { useOnlineGame } from './ui/hooks/useOnlineGame';
 
 type Mode = 'home' | 'local-setup' | 'local-game' | 'online';
 
-function LocalGame({ players, onExit }: { players: PlayerConfig[]; onExit: () => void }) {
-  const g = useLocalGame(players);
+function LocalGame({ players, options, onExit }: { players: PlayerConfig[]; options: GameOptions; onExit: () => void }) {
+  const g = useLocalGame(players, options);
   return <GameScreen g={g} onExit={onExit} />;
 }
 
@@ -59,6 +59,7 @@ export default function App() {
   }, []);
   const [mode, setMode] = useState<Mode>(inviteCode ? 'online' : 'home');
   const [players, setPlayers] = useState<PlayerConfig[] | null>(null);
+  const [options, setOptions] = useState<GameOptions>({});
   const [gameKey, setGameKey] = useState(0);
 
   const goHome = () => {
@@ -73,8 +74,9 @@ export default function App() {
     case 'local-setup':
       return (
         <SetupScreen
-          onStart={(p) => {
+          onStart={(p, o) => {
             setPlayers(p);
+            setOptions(o);
             setGameKey((k) => k + 1);
             setMode('local-game');
           }}
@@ -82,7 +84,7 @@ export default function App() {
         />
       );
     case 'local-game':
-      return <LocalGame key={gameKey} players={players!} onExit={() => setMode('local-setup')} />;
+      return <LocalGame key={gameKey} players={players!} options={options} onExit={() => setMode('local-setup')} />;
     case 'online':
       return <Online initialCode={inviteCode} onExit={goHome} />;
   }

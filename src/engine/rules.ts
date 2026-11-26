@@ -9,8 +9,20 @@ import {
 import { BOARD_LAYOUT, FREE, isCorner, positionsFor, type Pos } from './board';
 import { emptyGrid, findNewSequences, isInSequence, type ChipGrid, type Sequence } from './sequences';
 
-export type TeamColor = 'blue' | 'green' | 'red';
-export const TEAM_COLORS: TeamColor[] = ['blue', 'green', 'red'];
+export type TeamColor = 'blue' | 'green' | 'red' | 'purple' | 'orange' | 'teal' | 'gold' | 'pink';
+/** Every chip colour a team may pick. */
+export const CHIP_COLORS: TeamColor[] = ['blue', 'green', 'red', 'purple', 'orange', 'teal', 'gold', 'pink'];
+/** Default colours for teams 1-3 (classic blue / green / red). */
+export const DEFAULT_TEAM_COLORS: TeamColor[] = ['blue', 'green', 'red'];
+
+export interface GameOptions {
+  /** Chip colour per team index. Must be distinct. Defaults to blue / green / red. */
+  teamColors?: TeamColor[];
+  /** Sequences needed to win (1-3). Defaults to the official rule: 2 for 2 teams, 1 for 3 teams. */
+  sequencesToWin?: number;
+  /** Seconds per turn, 0 = no timer. */
+  turnSeconds?: number;
+}
 
 export interface PlayerConfig {
   name: string;
@@ -38,6 +50,13 @@ export interface GameState {
   seed: number;
   players: Player[];
   teamCount: number;
+  teamColors: TeamColor[];
+  /** Sequences a team needs to win this game. */
+  targetSequences: number;
+  /** Seconds allowed per turn (0 = unlimited). */
+  turnSeconds: number;
+  /** Epoch ms when the current turn began (drives the timer). */
+  turnStartedAt: number;
   grid: ChipGrid;
   sequences: Sequence[];
   /** Cells whose chip was placed with a two-eyed Jack (shown to everyone). */
@@ -97,8 +116,22 @@ export function validatePlayers(players: PlayerConfig[]): void {
   }
 }
 
-export function createGame(configs: PlayerConfig[], seed = Date.now()): GameState {
+export function resolveOptions(teamCount: number, options: GameOptions = {}): Required<GameOptions> {
+  const teamColors = (options.teamColors ?? DEFAULT_TEAM_COLORS).slice(0, teamCount);
+  if (teamColors.length !== teamCount) throw new Error('Every team needs a colour.');
+  if (new Set(teamColors).size !== teamCount) throw new Error('Teams must have different colours.');
+  if (teamColors.some((c) => !CHIP_COLORS.includes(c))) throw new Error('Unknown chip colour.');
+  const sequences = options.sequencesToWin ?? sequencesToWin(teamCount);
+  if (!Number.isInteger(sequences) || sequences < 1 || sequences > 3) throw new Error('Sequences to win must be 1, 2 or 3.');
+  const turnSeconds = options.turnSeconds ?? 0;
+  if (!Number.isInteger(turnSeconds) || turnSeconds < 0 || turnSeconds > 600) throw new Error('Invalid turn timer.');
+  return { teamColors, sequencesToWin: sequences, turnSeconds };
+}
+
+export function createGame(configs: PlayerConfig[], seed = Date.now(), options: GameOptions = {}, now = Date.now()): GameState {
   validatePlayers(configs);
+  const teamCount = new Set(configs.map((p) => p.team)).size;
+  const resolved = resolveOptions(teamCount, options);
   const rng = makeRng(seed);
   const deck = shuffle(buildDeck(), rng);
   const handSize = handSizeFor(configs.length);
@@ -106,11 +139,14 @@ export function createGame(configs: PlayerConfig[], seed = Date.now()): GameStat
   for (let i = 0; i < handSize; i++) {
     for (const p of players) p.hand.push(deck.pop()!);
   }
-  const teamCount = new Set(configs.map((p) => p.team)).size;
   return {
     seed,
     players,
     teamCount,
+    teamColors: resolved.teamColors,
+    targetSequences: resolved.sequencesToWin,
+    turnSeconds: resolved.turnSeconds,
+    turnStartedAt: now,
     grid: emptyGrid(),
     sequences: [],
     wildCells: [],
@@ -121,7 +157,10 @@ export function createGame(configs: PlayerConfig[], seed = Date.now()): GameStat
     winner: null,
     turn: 1,
     lastMove: null,
-    log: [`Game started. First to ${sequencesToWin(teamCount)} sequence${sequencesToWin(teamCount) > 1 ? 's' : ''} wins.`],
+    log: [
+      `Game started. First to ${resolved.sequencesToWin} sequence${resolved.sequencesToWin > 1 ? 's' : ''} wins.` +
+        (resolved.turnSeconds ? ` ${resolved.turnSeconds}s per turn.` : ''),
+    ],
   };
 }
 
@@ -198,10 +237,11 @@ function drawCard(state: GameState, player: Player): void {
   player.hand.push(state.drawPile.pop()!);
 }
 
-function endTurn(state: GameState): void {
+function endTurn(state: GameState, now: number): void {
   state.currentPlayer = (state.currentPlayer + 1) % state.players.length;
   state.deadCardUsed = false;
   state.turn += 1;
+  state.turnStartedAt = now;
 }
 
 export class IllegalMoveError extends Error {}
@@ -212,8 +252,8 @@ function assertTurn(state: GameState, playerId: number): Player {
   return state.players[playerId];
 }
 
-/** Pure reducer: returns a new state or throws IllegalMoveError. */
-export function applyAction(prev: GameState, action: Action): GameState {
+/** Pure reducer: returns a new state or throws IllegalMoveError. `now` stamps the next turn's start. */
+export function applyAction(prev: GameState, action: Action, now = Date.now()): GameState {
   const state = cloneState(prev);
   const player = assertTurn(state, action.playerId);
 
@@ -255,12 +295,12 @@ export function applyAction(prev: GameState, action: Action): GameState {
       };
       drawCard(state, player);
       const teamSeqs = state.sequences.filter((s) => s.team === player.team).length;
-      if (teamSeqs >= sequencesToWin(state.teamCount)) {
+      if (teamSeqs >= state.targetSequences) {
         state.winner = player.team;
         state.log.push(`Team ${player.team + 1} wins!`);
         return state;
       }
-      endTurn(state);
+      endTurn(state, now);
       return state;
     }
     case 'REMOVE': {
@@ -275,7 +315,7 @@ export function applyAction(prev: GameState, action: Action): GameState {
       state.log.push(`${player.name} removed a chip with ${action.card} (one-eyed Jack).`);
       state.lastMove = { playerId: player.id, card: action.card, pos: action.pos, kind: 'remove', wild: false, sequencesMade: 0 };
       drawCard(state, player);
-      endTurn(state);
+      endTurn(state, now);
       return state;
     }
   }
@@ -288,11 +328,16 @@ export function hasAnyMove(state: GameState, playerId: number): boolean {
 }
 
 /** Pass the turn when a player is stuck (all cards dead and already exchanged). */
-export function forcePass(prev: GameState, playerId: number): GameState {
+export function forcePass(prev: GameState, playerId: number, now = Date.now()): GameState {
   const state = cloneState(prev);
   const player = assertTurn(state, playerId);
   if (hasAnyMove(state, playerId)) throw new IllegalMoveError('You still have a legal move.');
   state.log.push(`${player.name} has no legal move and passes.`);
-  endTurn(state);
+  endTurn(state, now);
   return state;
+}
+
+/** True once the current player's clock has run out (never when the timer is off). */
+export function isTurnExpired(state: GameState, now = Date.now()): boolean {
+  return state.turnSeconds > 0 && state.winner === null && now - state.turnStartedAt >= state.turnSeconds * 1000;
 }
