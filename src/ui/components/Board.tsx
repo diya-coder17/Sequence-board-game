@@ -71,7 +71,7 @@ export function Board({ state, legal, hints, hoverPos, onHover, onCellClick, pre
                   onMouseLeave={() => onHover(null)}
                   tabIndex={target ? 0 : -1}
                 >
-                  {card === FREE ? <span className="free-mark">Free</span> : <CardFace card={card} variant="mini" />}
+                  {card === FREE ? <span className="chip free" title="Free corner — counts for every team" aria-hidden /> : <CardFace card={card} variant="mini" />}
                   <AnimatePresence>
                     {owner !== null && <Chip key={`chip-${owner}`} color={state.teamColors[owner]} wild={wildSet.has(key)} />}
                     {owner === null && hovering && target?.kind === 'place' && <Chip key="ghost" color={state.teamColors[previewTeam]} ghost />}

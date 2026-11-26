@@ -9,9 +9,9 @@ import {
 import { BOARD_LAYOUT, FREE, isCorner, positionsFor, type Pos } from './board';
 import { emptyGrid, findNewSequences, isInSequence, type ChipGrid, type Sequence } from './sequences';
 
-export type TeamColor = 'blue' | 'green' | 'red' | 'purple' | 'orange' | 'teal' | 'gold' | 'pink';
+export type TeamColor = 'blue' | 'green' | 'red';
 /** Every chip colour a team may pick. */
-export const CHIP_COLORS: TeamColor[] = ['blue', 'green', 'red', 'purple', 'orange', 'teal', 'gold', 'pink'];
+export const CHIP_COLORS: TeamColor[] = ['blue', 'green', 'red'];
 /** Default colours for teams 1-3 (classic blue / green / red). */
 export const DEFAULT_TEAM_COLORS: TeamColor[] = ['blue', 'green', 'red'];
 

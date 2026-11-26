@@ -110,7 +110,7 @@ docs/superpowers/specs Design document
 
 Both local setup and online room creation let you choose:
 
-- **Team colours** — eight chip colours (blue, green, red, purple, orange, teal, gold, pink); teams must differ.
+- **Team colours** — blue, green or red per team; teams must differ. Every chip carries the ❖ mark, and the four free corners show an ivory ❖ chip.
 - **Sequences to win** — 1, 2 or 3 (the official rule is 2 for two teams, 1 for three teams).
 - **Turn timer** — off, 30, 60 or 90 seconds. A countdown ring shows the time left; when it runs out a sensible
   move is played automatically (the server enforces this online) and everyone is told.

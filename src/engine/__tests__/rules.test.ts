@@ -50,8 +50,8 @@ describe('setup', () => {
   });
 
   it('applies game options and validates them', () => {
-    const g = createGame(two, 1, { teamColors: ['purple', 'gold'], sequencesToWin: 3, turnSeconds: 30 }, 1000);
-    expect(g.teamColors).toEqual(['purple', 'gold']);
+    const g = createGame(two, 1, { teamColors: ['red', 'blue'], sequencesToWin: 3, turnSeconds: 30 }, 1000);
+    expect(g.teamColors).toEqual(['red', 'blue']);
     expect(g.targetSequences).toBe(3);
     expect(g.turnSeconds).toBe(30);
     expect(g.turnStartedAt).toBe(1000);

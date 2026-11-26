@@ -72,12 +72,12 @@ describe('RoomManager', () => {
 
   it('stores a room name and options, and applies them to the game', () => {
     const m = new RoomManager();
-    const room = m.createRoom('a', 'Ann', 2, 2, true, "Ann's Theatre <script>", { teamColors: ['gold', 'teal'], sequencesToWin: 1, turnSeconds: 45 });
+    const room = m.createRoom('a', 'Ann', 2, 2, true, "Ann's Theatre <script>", { teamColors: ['red', 'green'], sequencesToWin: 1, turnSeconds: 45 });
     expect(room.name).toBe("Ann's Theatre script");
     expect(m.createRoom('z', 'Zed', 2, 2).name).toBe("Zed's room");
     m.joinRoom('b', 'Bob', room.code);
     m.startGame('a', 3);
-    expect(room.game?.teamColors).toEqual(['gold', 'teal']);
+    expect(room.game?.teamColors).toEqual(['red', 'green']);
     expect(room.game?.targetSequences).toBe(1);
     expect(room.game?.turnSeconds).toBe(45);
     expect(m.roomInfo(room, 'b').options.sequencesToWin).toBe(1);

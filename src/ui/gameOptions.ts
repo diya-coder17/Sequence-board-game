@@ -5,11 +5,6 @@ export const COLOR_LABEL: Record<TeamColor, string> = {
   blue: 'Blue',
   green: 'Green',
   red: 'Red',
-  purple: 'Purple',
-  orange: 'Orange',
-  teal: 'Teal',
-  gold: 'Gold',
-  pink: 'Pink',
 };
 
 export interface OptionsValue {
