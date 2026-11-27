@@ -79,9 +79,7 @@ export function GameScreen({ g, onExit }: Props) {
           onCellClick={g.clickCell}
           previewTeam={current?.team ?? 0}
         />
-        <Sidebar state={state} viewerId={g.viewerId} thinking={!!g.waitingText} seats={g.seats} />
-      </div>
-
+        <div className="side-col">
       <footer className="hand-bar">
         <div className="status">
           <div className="who">
@@ -138,6 +136,9 @@ export function GameScreen({ g, onExit }: Props) {
           )}
         </div>
       </footer>
+          <Sidebar state={state} viewerId={g.viewerId} thinking={!!g.waitingText} seats={g.seats} />
+        </div>
+      </div>
 
       <Toast message={g.error} />
       <AnimatePresence>
