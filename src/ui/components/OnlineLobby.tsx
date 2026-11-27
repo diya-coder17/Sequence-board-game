@@ -193,8 +193,11 @@ export function OnlineLobby({ session, initialCode, onBack }: Props) {
 
         {session.error && <p className="error-text" style={{ marginTop: 14 }}>{session.error}</p>}
         {session.status !== 'open' && session.status !== 'connecting' && (
-          <p className="error-text" style={{ marginTop: 14 }}>
+          <p className="error-text" style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             Can't reach the game server. It may be waking up — this can take up to a minute on free hosting.
+            <button className="btn btn-sm" type="button" onClick={session.retryConnection}>
+              Retry now
+            </button>
           </p>
         )}
       </div>

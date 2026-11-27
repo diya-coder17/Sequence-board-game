@@ -7,6 +7,7 @@ const NAME_KEY = 'sequence.name';
 const SESSION_KEY = 'sequence.session';
 const PING_MS = 20_000;
 const WATCHDOG_MS = 50_000;
+const CONNECT_TIMEOUT_MS = 10_000;
 
 function read(key: string): string | null {
   try {
@@ -105,7 +106,13 @@ export class GameClient {
     this.setStatus(this.retry ? 'reconnecting' : 'connecting');
     const ws = new WebSocket(GameClient.url());
     this.ws = ws;
+    // A socket can hang in CONNECTING for minutes (server restarting, flaky mobile network):
+    // give up after a while so the normal retry loop takes over.
+    const connectTimer = setTimeout(() => {
+      if (ws.readyState === WebSocket.CONNECTING) ws.close();
+    }, CONNECT_TIMEOUT_MS);
     ws.onopen = () => {
+      clearTimeout(connectTimer);
       this.retry = 0;
       this.setStatus('open');
       ws.send(JSON.stringify({ type: 'hello', token: this.token, name: this.name, session: this.session } satisfies ClientMessage));
@@ -128,6 +135,7 @@ export class GameClient {
       for (const l of this.listeners) l(msg);
     };
     ws.onclose = () => {
+      clearTimeout(connectTimer);
       if (this.ws !== ws) return;
       this.ws = null;
       this.stopHeartbeat();
@@ -159,6 +167,19 @@ export class GameClient {
       // Server went silent: recycle the socket so the reconnect logic takes over.
       this.ws?.close();
     }, WATCHDOG_MS);
+  }
+
+  /** User-initiated: drop whatever socket we have and connect again right now. */
+  retryNow() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.retry = 0;
+    const old = this.ws;
+    this.ws = null;
+    old?.close();
+    this.connect();
   }
 
   close() {

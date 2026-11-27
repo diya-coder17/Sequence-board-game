@@ -30,6 +30,7 @@ export interface OnlineSession {
   quickMatch: () => void;
   cancelQuickMatch: () => void;
   startGame: () => void;
+  retryConnection: () => void;
   controller: GameController | null;
 }
 
@@ -228,6 +229,7 @@ export function useOnlineGame(): OnlineSession {
     quickMatch: () => client.send({ type: 'quick_match' }),
     cancelQuickMatch: () => client.send({ type: 'cancel_quick_match' }),
     startGame: () => client.send({ type: 'start_game' }),
+    retryConnection: () => client.retryNow(),
     controller,
   };
 }
