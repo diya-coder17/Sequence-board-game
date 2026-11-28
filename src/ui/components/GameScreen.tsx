@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { isMuted, onMuteChange, setMuted, sounds } from '../sound';
 import { isOneEyedJack, isTwoEyedJack } from '../../engine';
 import type { GameController } from '../hooks/controller';
 import { describeLastMove } from '../moveText';
@@ -25,7 +26,30 @@ const EVENT_TITLE: Record<string, string> = {
 
 export function GameScreen({ g, onExit }: Props) {
   const [showRules, setShowRules] = useState(false);
+  const [muted, setMutedState] = useState(isMuted);
+  useEffect(() => onMuteChange(setMutedState), []);
   const { state } = g;
+
+  // Sounds are driven by state changes so they fire for local and online play alike.
+  const seenTurn = useRef(state.turn);
+  const seenSeqs = useRef(state.sequences.length);
+  useEffect(() => {
+    if (state.turn === seenTurn.current) return;
+    seenTurn.current = state.turn;
+    const m = state.lastMove;
+    if (!m) return;
+    const madeSequence = state.sequences.length > seenSeqs.current;
+    seenSeqs.current = state.sequences.length;
+    if (state.winner !== null) sounds.victory();
+    else if (madeSequence) sounds.sequence();
+    else if (m.kind === 'remove') sounds.remove();
+    else sounds.place();
+  }, [state.turn, state.lastMove, state.sequences.length, state.winner]);
+  useEffect(() => {
+    // Reset trackers for a new game (seed changes on rematch).
+    seenTurn.current = state.turn;
+    seenSeqs.current = state.sequences.length;
+  }, [state.seed]); // eslint-disable-line react-hooks/exhaustive-deps
   const current = state.players[state.currentPlayer];
   const viewer = g.viewerId >= 0 ? state.players[g.viewerId] : null;
   const showHand = g.canAct || (!!viewer && !g.needsHandoff && state.winner === null);
@@ -57,6 +81,9 @@ export function GameScreen({ g, onExit }: Props) {
             </span>
           )}
           <span className="pill">Turn {state.turn}</span>
+          <button className="btn btn-ghost btn-sm" onClick={() => setMuted(!muted)} aria-pressed={muted} title={muted ? 'Unmute sounds' : 'Mute sounds'} aria-label={muted ? 'Unmute sounds' : 'Mute sounds'}>
+            {muted ? '🔇' : '🔊'}
+          </button>
           <button className="btn btn-ghost btn-sm" onClick={() => setShowRules(true)}>
             Rules
           </button>

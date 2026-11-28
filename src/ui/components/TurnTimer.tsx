@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { sounds } from '../sound';
 
 interface Props {
   seconds: number;
@@ -16,6 +17,18 @@ export function TurnTimer({ seconds, startedAt, active }: Props) {
   }, [active, startedAt]);
 
   const remaining = Math.max(0, seconds - (now - startedAt) / 1000);
+
+  // One tick per whole second during the last five (5,4,3,2,1), only for the player on the clock.
+  const whole = Math.ceil(remaining);
+  const lastTicked = useRef<number | null>(null);
+  useEffect(() => {
+    lastTicked.current = null;
+  }, [startedAt]);
+  useEffect(() => {
+    if (!active || whole > 5 || whole < 1 || lastTicked.current === whole) return;
+    lastTicked.current = whole;
+    sounds.tick(whole === 1);
+  }, [active, whole]);
   const frac = seconds > 0 ? remaining / seconds : 0;
   const r = 16;
   const circ = 2 * Math.PI * r;
