@@ -1,6 +1,6 @@
 import type { GameOptions, TeamColor } from '../engine';
 
-export const TIMER_CHOICES = [0, 30, 60, 90] as const;
+export const TIMER_CHOICES = [0, 10, 15, 20, 30, 60, 90] as const;
 export const COLOR_LABEL: Record<TeamColor, string> = {
   blue: 'Blue',
   green: 'Green',
